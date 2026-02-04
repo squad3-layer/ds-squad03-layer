@@ -1,0 +1,46 @@
+package com.domleondev.designsystem.di
+
+import com.domleondev.designsystem.data.repository.FirebaseRemoteConfigRepository
+import com.domleondev.designsystem.domain.renderer.UiRenderer
+import com.domleondev.designsystem.domain.repository.RemoteConfigRepository
+import com.domleondev.designsystem.parser.GsonJsonParser
+import com.domleondev.designsystem.parser.JsonParser
+import com.domleondev.designsystem.presentation.renderer.BackendDrivenUiRenderer
+import com.google.gson.Gson
+import dagger.Binds
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DesignSystemModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindJsonParser(
+        gsonJsonParser: GsonJsonParser
+    ): JsonParser
+
+    @Binds
+    @Singleton
+    abstract fun bindUiRenderer(
+        uiRenderer: BackendDrivenUiRenderer
+    ): UiRenderer
+
+    @Binds
+    @Singleton
+    abstract fun bindRemoteConfigRepository(
+        remoteConfigRepositoryImpl: FirebaseRemoteConfigRepository
+    ): RemoteConfigRepository
+
+    companion object {
+        @Provides
+        @Singleton
+        fun provideGson(): Gson {
+            return Gson()
+        }
+    }
+}
