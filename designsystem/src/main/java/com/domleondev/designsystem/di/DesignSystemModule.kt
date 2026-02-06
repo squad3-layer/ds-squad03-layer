@@ -1,11 +1,13 @@
 package com.domleondev.designsystem.di
 
+import com.domleondev.designsystem.contract.DesignSystem
 import com.domleondev.designsystem.data.repository.FirebaseRemoteConfigRepository
 import com.domleondev.designsystem.domain.renderer.UiRenderer
 import com.domleondev.designsystem.domain.repository.RemoteConfigRepository
 import com.domleondev.designsystem.parser.GsonJsonParser
 import com.domleondev.designsystem.parser.JsonParser
 import com.domleondev.designsystem.presentation.renderer.BackendDrivenUiRenderer
+import com.domleondev.designsystem.runtime.DesignSystemImpl
 import com.google.gson.Gson
 import dagger.Binds
 import dagger.Module
@@ -35,6 +37,14 @@ abstract class DesignSystemModule {
     abstract fun bindRemoteConfigRepository(
         remoteConfigRepositoryImpl: FirebaseRemoteConfigRepository
     ): RemoteConfigRepository
+
+    @Module
+    @InstallIn(SingletonComponent::class)
+    abstract class DsModule {
+        @Binds
+        @Singleton
+        internal abstract fun bindDesignSystem(impl: DesignSystemImpl): DesignSystem
+    }
 
     companion object {
         @Provides

@@ -48,7 +48,7 @@ dependencies {
 
     implementation("com.google.code.gson:gson:2.10.1")
 
-    implementation("com.github.rafaelKontein23.designe-system-news:mylibrary:v1.0.6")
+    implementation("com.github.rafaelKontein23.designe-system-news:mylibrary:v1.0.14")
 
     // Glide / Hilt
     implementation("com.google.dagger:hilt-android:2.50")
