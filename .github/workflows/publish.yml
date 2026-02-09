@@ -1,0 +1,38 @@
+name: Publish Library
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # GitHub automatically provides GITHUB_TOKEN with appropriate permissions
+      # No manual secrets configuration required!
+      - name: Publish to GitHub Packages
+        env:
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MAVEN_URL: "https://maven.pkg.github.com/squad3-layer/ds-squad03-layer"
+        run: ./gradlew publishReleasePublicationToGitHubRepository -PlibVersion=1.0.${{ github.run_number }}
+
