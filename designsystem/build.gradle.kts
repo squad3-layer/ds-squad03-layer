@@ -3,8 +3,12 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     id("com.google.dagger.hilt.android")
+    id("maven-publish")
     kotlin("kapt")
 }
+
+version = providers.gradleProperty("libVersion").getOrElse("1.0.0")
+apply(from = "$rootDir/gradle/publish-module.gradle.kts")
 
 android {
     namespace = "com.domleondev.designsystem"
@@ -19,6 +23,13 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
     }
 
     buildTypes {
