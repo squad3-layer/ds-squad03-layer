@@ -1,4 +1,4 @@
-package com.layer.designsystem
+package com.domleondev.layerdesignsystem
 
 import org.junit.Test
 

@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     id("com.google.dagger.hilt.android")
@@ -7,17 +7,14 @@ plugins {
 }
 
 android {
-    namespace = "com.domleondev.layerdesignsystem"
+    namespace = "com.domleondev.designsystem"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.domleondev.layerdesignsystem"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildFeatures {
@@ -47,13 +44,12 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
 
-    implementation(libs.androidx.lifecycle.viewmodel)
-    implementation(libs.androidx.lifecycle.livedata)
 
-    implementation(project(":designsystem"))
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    implementation("com.github.rafaelKontein23.designe-system-news:mylibrary:v1.0.14")
+
     // Glide / Hilt
     implementation("com.google.dagger:hilt-android:2.50")
     kapt("com.google.dagger:hilt-android-compiler:2.50")
@@ -61,7 +57,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
     implementation("com.google.firebase:firebase-config")
     implementation("com.google.firebase:firebase-analytics")
-
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
