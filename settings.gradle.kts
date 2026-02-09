@@ -16,8 +16,7 @@ gradle.settingsEvaluated {
         ?: providers.gradleProperty("GITHUB_USERNAME").orNull
     val githubToken = System.getenv("GITHUB_TOKEN")
         ?: providers.gradleProperty("GITHUB_TOKEN").orNull
-    val githubMavenUrl = System.getenv("GITHUB_MAVEN_URL")
-        ?: providers.gradleProperty("GITHUB_MAVEN_URL").orNull
+    val githubMavenUrl = "https://maven.pkg.github.com/squad3-layer/ds-squad03-layer"
 
     enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
     dependencyResolutionManagement {
@@ -25,6 +24,7 @@ gradle.settingsEvaluated {
         repositories {
             google()
             mavenCentral()
+            maven { url = uri("https://jitpack.io") }
 
             if (githubMavenUrl != null) {
                 maven {
