@@ -12,10 +12,12 @@ pluginManagement {
     }
 }
 gradle.settingsEvaluated {
-    val githubUsername =
-        settings.extra["GITHUB_USERNAME"] as? String ?: System.getenv("GITHUB_USERNAME")
-    val githubToken = settings.extra["GITHUB_TOKEN"] as? String ?: System.getenv("GITHUB_TOKEN")
-    val githubMavenUrl: String? = providers.gradleProperty("GITHUB_MAVEN_URL").orNull
+    val githubUsername = System.getenv("GITHUB_USERNAME")
+        ?: providers.gradleProperty("GITHUB_USERNAME").orNull
+    val githubToken = System.getenv("GITHUB_TOKEN")
+        ?: providers.gradleProperty("GITHUB_TOKEN").orNull
+    val githubMavenUrl = System.getenv("GITHUB_MAVEN_URL")
+        ?: providers.gradleProperty("GITHUB_MAVEN_URL").orNull
 
     enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
     dependencyResolutionManagement {
@@ -24,12 +26,14 @@ gradle.settingsEvaluated {
             google()
             mavenCentral()
 
-            maven {
-                name = "GitHub"
-                url = uri(githubMavenUrl ?: System.getenv("GITHUB_MAVEN_URL"))
-                credentials {
-                    username = githubUsername
-                    password = githubToken
+            if (githubMavenUrl != null) {
+                maven {
+                    name = "GitHub"
+                    url = uri(githubMavenUrl)
+                    credentials {
+                        username = githubUsername
+                        password = githubToken
+                    }
                 }
             }
         }
