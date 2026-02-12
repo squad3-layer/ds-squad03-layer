@@ -31,11 +31,9 @@ interface DsEventStream {
 interface DesignSystem {
 
     fun createView(context: android.content.Context, component: com.domleondev.designsystem.domain.model.Component): android.view.View?
-
-
     fun validate(vararg fieldIds: String): DsValidationResult
-
     fun eventStream(): DsEventStream
-
     fun clearValidation(vararg fieldIds: String)
+    fun setEnabled(id: String, enabled: Boolean)
+    fun getValue(id: String): String?
 }

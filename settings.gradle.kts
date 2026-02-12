@@ -23,7 +23,7 @@ gradle.settingsEvaluated {
         repositories {
             google()
             mavenCentral()
-
+            maven { url = uri("https://jitpack.io") }
             maven {
                 name = "GitHub"
                 url = uri(githubMavenUrl ?: System.getenv("GITHUB_MAVEN_URL"))
