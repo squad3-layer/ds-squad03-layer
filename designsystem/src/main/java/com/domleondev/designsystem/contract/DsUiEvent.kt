@@ -36,4 +36,5 @@ interface DesignSystem {
     fun clearValidation(vararg fieldIds: String)
     fun setEnabled(id: String, enabled: Boolean)
     fun getValue(id: String): String?
+    fun setError(id: String, message: String?)
 }
