@@ -25,15 +25,12 @@ gradle.settingsEvaluated {
             google()
             mavenCentral()
             maven { url = uri("https://jitpack.io") }
-
-            if (githubMavenUrl != null) {
-                maven {
-                    name = "GitHub"
-                    url = uri(githubMavenUrl)
-                    credentials {
-                        username = githubUsername
-                        password = githubToken
-                    }
+            maven {
+                name = "GitHub"
+                url = uri(githubMavenUrl ?: System.getenv("GITHUB_MAVEN_URL"))
+                credentials {
+                    username = githubUsername
+                    password = githubToken
                 }
             }
         }

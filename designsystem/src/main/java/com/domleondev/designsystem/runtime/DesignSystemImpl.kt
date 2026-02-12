@@ -26,246 +26,283 @@ internal class DesignSystemImpl @Inject constructor(
 ) : DesignSystem {
 
     private val eventsFlow = MutableSharedFlow<DsUiEvent>(extraBufferCapacity = 64)
-    private val _eventStream = object : DsEventStream { override val events = eventsFlow.asSharedFlow() }
+    private val _eventStream = object : DsEventStream {
+        override val events = eventsFlow.asSharedFlow()
+    }
     private val inputRegistry = linkedMapOf<String, DsInput>()
     private val rulesRegistry = linkedMapOf<String, List<DsValidationRule>>()
 
     override fun eventStream(): DsEventStream = _eventStream
+    private val viewRegistry = linkedMapOf<String, View>()
 
     override fun createView(context: Context, component: Component): View? {
-        val view = factory.createView(context, component)
+
+        val view = factory.createView(context, component) ?: return null
 
         val props = component.props ?: emptyMap()
         val id = component.id.orEmpty()
+        val action = props["action"]?.toString()
 
-        when (view) {
-            is DsButton -> {
-                view.setOnClickListener {
-                    props["analyticsEvent"]?.toString()?.let {
-                        eventsFlow.tryEmit(DsUiEvent.Analytics(it))
-                    }
 
-                    eventsFlow.tryEmit(DsUiEvent.Click(id))
+        if (id.isNotEmpty()) {
+            viewRegistry[id] = view
+        }
 
-                    props["action"]?.toString()?.let {
-                        eventsFlow.tryEmit(DsUiEvent.Action(id, it))
-                    }
 
-                    if (props["submit"] as? Boolean == true) {
-                        when (val result = validate()) {
-                            is DsValidationResult.Valid -> {
-                                val screenId = props["screenId"]?.toString() ?: "unknown"
-                                eventsFlow.tryEmit(DsUiEvent.Submit(screenId))
-                            }
-                            is DsValidationResult.Invalid -> {
-                                announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
-                            }
-                        }
-                    }
-                }
+        if (view is DsInput) {
+            inputRegistry[id] = view
+            rulesRegistry[id] = props.parseValidationRules()
+
+
+            view.doAfterTextChanged { text ->
+                eventsFlow.tryEmit(DsUiEvent.Change(id, text?.toString().orEmpty()))
             }
-            is DsInput -> {
+        }
 
-                inputRegistry[id] = view
-                rulesRegistry[id] = props.parseValidationRules()
+        if (action != null) {
+            view.setOnClickListener {
+
+                eventsFlow.tryEmit(DsUiEvent.Action(id, action))
+
+
+                if (props["submit"] as? Boolean == true) {
+                    handleSubmitAction(id, props)
+                }
             }
         }
 
         return view
     }
 
-    override fun validate(vararg fieldIds: String): DsValidationResult {
-        val targets = if (fieldIds.isEmpty()) inputRegistry.keys else fieldIds.toList()
-        val errors = mutableMapOf<String, String>()
-        targets.forEach { id ->
-            val input = inputRegistry[id] ?: return@forEach
-            val rules = rulesRegistry[id].orEmpty()
-            val value = input.text?.toString().orEmpty()
-            validateField(id, value, rules)?.let { msg ->
-                errors[id] = msg
-                showErrorA11y(input, msg)
-            } ?: clearErrorA11y(input)
+    override fun setEnabled(id: String, enabled: Boolean) {
+        viewRegistry[id]?.let { view ->
+            view.isEnabled = enabled
+            view.alpha = if (enabled) 1.0f else 0.5f
         }
-        return if (errors.isEmpty()) DsValidationResult.Valid else DsValidationResult.Invalid(errors)
     }
 
-    override fun clearValidation(vararg fieldIds: String) {
-        val targets = if (fieldIds.isEmpty()) inputRegistry.values else fieldIds.mapNotNull { inputRegistry[it] }
-        targets.forEach { clearErrorA11y(it) }
+    private fun handleSubmitAction(id: String, props: Map<String, Any?>) {
+        when (val result = validate()) {
+            is DsValidationResult.Valid -> {
+                eventsFlow.tryEmit(DsUiEvent.Submit(id))
+            }
+            is DsValidationResult.Invalid -> {
+                announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
+            }
+        }
     }
 
+override fun validate(vararg fieldIds: String): DsValidationResult {
+    val targets = if (fieldIds.isEmpty()) inputRegistry.keys else fieldIds.toList()
+    val errors = mutableMapOf<String, String>()
+    targets.forEach { id ->
+        val input = inputRegistry[id] ?: return@forEach
+        val rules = rulesRegistry[id].orEmpty()
+        val value = input.text?.toString().orEmpty()
+        validateField(id, value, rules)?.let { msg ->
+            errors[id] = msg
+            showErrorA11y(input, msg)
+        } ?: clearErrorA11y(input)
+    }
+    return if (errors.isEmpty()) DsValidationResult.Valid else DsValidationResult.Invalid(errors)
+}
 
-    private fun createTextView(context: Context, props: Map<String, Any?>): TextView =
-        TextView(context).apply {
-            text = props.getString("title").orEmpty()
-            textSize = props.getNumberAsFloat("size") ?: 16f
-            when (props.getString("weight")?.lowercase()) {
-                "bold"   -> setTypeface(typeface, Typeface.BOLD)
-                "italic" -> setTypeface(typeface, Typeface.ITALIC)
-                else     -> setTypeface(typeface, Typeface.NORMAL)
+override fun clearValidation(vararg fieldIds: String) {
+    val targets =
+        if (fieldIds.isEmpty()) inputRegistry.values else fieldIds.mapNotNull { inputRegistry[it] }
+    targets.forEach { clearErrorA11y(it) }
+}
+
+
+private fun createTextView(context: Context, props: Map<String, Any?>): TextView =
+    TextView(context).apply {
+        text = props.getString("title").orEmpty()
+        textSize = props.getNumberAsFloat("size") ?: 16f
+        when (props.getString("weight")?.lowercase()) {
+            "bold" -> setTypeface(typeface, Typeface.BOLD)
+            "italic" -> setTypeface(typeface, Typeface.ITALIC)
+            else -> setTypeface(typeface, Typeface.NORMAL)
+        }
+    }
+
+private fun createInputView(context: Context, props: Map<String, Any?>, id: String): DsInput =
+    DsInput(context).apply {
+        this.hint = props.getString("hint").orEmpty()
+        inputRegistry[id] = this
+        rulesRegistry[id] = props.parseValidationRules()
+
+
+        doAfterTextChanged { text ->
+            val value = text?.toString().orEmpty()
+            eventsFlow.tryEmit(DsUiEvent.Change(id, value))
+
+            if (props.getBooleanSafe("validateOnChange") == true) {
+
+                val rule = validateField(id, value, rulesRegistry[id].orEmpty())
+                if (rule == null) clearErrorA11y(this) else showErrorA11y(this, rule)
             }
         }
+    }
 
-    private fun createInputView(context: Context, props: Map<String, Any?>, id: String): DsInput =
-        DsInput(context).apply {
-            this.hint = props.getString("hint").orEmpty()
-            inputRegistry[id] = this
-            rulesRegistry[id] = props.parseValidationRules()
+private fun createButtonView(context: Context, props: Map<String, Any?>, id: String): DsButton =
+    DsButton(context).apply {
+        text = props.getString("text").orEmpty()
+        isFocusable = true
 
+        setOnClickListener {
 
-            doAfterTextChanged { text ->
-                val value = text?.toString().orEmpty()
-                eventsFlow.tryEmit(DsUiEvent.Change(id, value))
-
-                if (props.getBooleanSafe("validateOnChange") == true) {
-
-                    val rule = validateField(id, value, rulesRegistry[id].orEmpty())
-                    if (rule == null) clearErrorA11y(this) else showErrorA11y(this, rule)
-                }
+            props.getString("analyticsEvent")?.let { eventName ->
+                eventsFlow.tryEmit(DsUiEvent.Analytics(eventName))
             }
-        }
 
-    private fun createButtonView(context: Context, props: Map<String, Any?>, id: String): DsButton =
-        DsButton(context).apply {
-            text = props.getString("text").orEmpty()
-            isFocusable = true
+            eventsFlow.tryEmit(DsUiEvent.Click(id))
 
-            setOnClickListener {
+            props.getString("action")?.let { actionValue ->
+                eventsFlow.tryEmit(DsUiEvent.Action(id, actionValue))
+            }
 
-                props.getString("analyticsEvent")?.let { eventName ->
-                    eventsFlow.tryEmit(DsUiEvent.Analytics(eventName))
-                }
+            val isSubmit = props.getBooleanSafe("submit") == true
+            if (isSubmit) {
+                when (val result = validate()) {
+                    is DsValidationResult.Valid -> {
+                        val screenId = props.getString("screenId") ?: "unknown"
+                        eventsFlow.tryEmit(DsUiEvent.Submit(screenId))
+                    }
 
-                eventsFlow.tryEmit(DsUiEvent.Click(id))
-
-                props.getString("action")?.let { actionValue ->
-                    eventsFlow.tryEmit(DsUiEvent.Action(id, actionValue))
-                }
-
-                val isSubmit = props.getBooleanSafe("submit") == true
-                if (isSubmit) {
-                    when (val result = validate()) {
-                        is DsValidationResult.Valid -> {
-                            val screenId = props.getString("screenId") ?: "unknown"
-                            eventsFlow.tryEmit(DsUiEvent.Submit(screenId))
-                        }
-                        is DsValidationResult.Invalid -> {
-                            announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
-                        }
+                    is DsValidationResult.Invalid -> {
+                        announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
                     }
                 }
             }
         }
+    }
 
 
-    private fun validateField(
-        id: String,
-        value: String,
-        rules: List<DsValidationRule>
-    ): String? {
-        for (rule in rules) {
-            when (rule.type.lowercase()) {
-                "required" -> if (value.isBlank()) return rule.message.ifBlank { "Campo obrigatório" }
-                "email"    -> if (!android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches())
-                    return rule.message.ifBlank { "E-mail inválido" }
-                "minlength"-> {
-                    val min = (rule.params["min"] as? Number)?.toInt() ?: 0
-                    if (value.length < min) return rule.message.ifBlank { "Mínimo de $min caracteres" }
-                }
-                "regex"    -> {
-                    val pattern = rule.params["pattern"]?.toString()?.toRegex() ?: continue
-                    if (!pattern.matches(value)) return rule.message.ifBlank { "Formato inválido" }
-                }
+private fun validateField(
+    id: String,
+    value: String,
+    rules: List<DsValidationRule>
+): String? {
+    for (rule in rules) {
+        when (rule.type.lowercase()) {
+            "required" -> if (value.isBlank()) return rule.message.ifBlank { "Campo obrigatório" }
+            "email" -> if (!android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches())
+                return rule.message.ifBlank { "E-mail inválido" }
+
+            "minlength" -> {
+                val min = (rule.params["min"] as? Number)?.toInt() ?: 0
+                if (value.length < min) return rule.message.ifBlank { "Mínimo de $min caracteres" }
+            }
+
+            "regex" -> {
+                val pattern = rule.params["pattern"]?.toString()?.toRegex() ?: continue
+                if (!pattern.matches(value)) return rule.message.ifBlank { "Formato inválido" }
             }
         }
-        return null
     }
+    return null
+}
 
 
-    private fun showErrorA11y(input: DsInput, message: String) {
+private fun showErrorA11y(input: DsInput, message: String) {
 
-        try { input.error = message } catch (_: Throwable) {}
-        ViewCompat.setStateDescription(input, message)
-        ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE)
-        input.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+    try {
+        input.error = message
+    } catch (_: Throwable) {
     }
+    ViewCompat.setStateDescription(input, message)
+    ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE)
+    input.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
+}
 
-    private fun clearErrorA11y(input: DsInput) {
-        try { input.error = null } catch (_: Throwable) {}
-        ViewCompat.setStateDescription(input, null)
-        ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_NONE)
+private fun clearErrorA11y(input: DsInput) {
+    try {
+        input.error = null
+    } catch (_: Throwable) {
     }
+    ViewCompat.setStateDescription(input, null)
+    ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_NONE)
+}
 
-    private fun announceGlobalErrorIfNeeded(firstMessage: String?) {
+private fun announceGlobalErrorIfNeeded(firstMessage: String?) {
 
-    }
+}
 
-    private fun applyMargins(view: View, props: Map<String, Any?>, context: Context) {
-        val lp = (view.layoutParams as? ViewGroup.MarginLayoutParams)
-            ?: ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        fun Int.dp() = (this * context.resources.displayMetrics.density).toInt()
-        lp.setMargins(
-            (props.getNumberAsInt("margin_left") ?: 0).dp(),
-            (props.getNumberAsInt("margin_top") ?: 0).dp(),
-            (props.getNumberAsInt("margin_right") ?: 0).dp(),
-            (props.getNumberAsInt("margin_bottom") ?: 0).dp()
+private fun applyMargins(view: View, props: Map<String, Any?>, context: Context) {
+    val lp = (view.layoutParams as? ViewGroup.MarginLayoutParams)
+        ?: ViewGroup.MarginLayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        view.layoutParams = lp
-    }
 
-    private fun applyAlignment(view: View, props: Map<String, Any?>) {
-        val align = props.getString("align")?.lowercase()
-        if (view is TextView) {
-            when (align) {
-                "center" -> {
-                    view.textAlignment = View.TEXT_ALIGNMENT_CENTER
-                    view.gravity = android.view.Gravity.CENTER_HORIZONTAL
-                }
-                "left" -> {
-                    view.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
-                    view.gravity = android.view.Gravity.START
-                }
-                "right" -> {
-                    view.textAlignment = View.TEXT_ALIGNMENT_VIEW_END
-                    view.gravity = android.view.Gravity.END
-                }
+    fun Int.dp() = (this * context.resources.displayMetrics.density).toInt()
+    lp.setMargins(
+        (props.getNumberAsInt("margin_left") ?: 0).dp(),
+        (props.getNumberAsInt("margin_top") ?: 0).dp(),
+        (props.getNumberAsInt("margin_right") ?: 0).dp(),
+        (props.getNumberAsInt("margin_bottom") ?: 0).dp()
+    )
+    view.layoutParams = lp
+}
+
+private fun applyAlignment(view: View, props: Map<String, Any?>) {
+    val align = props.getString("align")?.lowercase()
+    if (view is TextView) {
+        when (align) {
+            "center" -> {
+                view.textAlignment = View.TEXT_ALIGNMENT_CENTER
+                view.gravity = android.view.Gravity.CENTER_HORIZONTAL
+            }
+
+            "left" -> {
+                view.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                view.gravity = android.view.Gravity.START
+            }
+
+            "right" -> {
+                view.textAlignment = View.TEXT_ALIGNMENT_VIEW_END
+                view.gravity = android.view.Gravity.END
             }
         }
     }
+}
 
-    private fun applyFocusNavigation(view: View, props: Map<String, Any?>) {
-        props.getNumberAsInt("next_focus_up")?.let { view.nextFocusUpId = it }
-        props.getNumberAsInt("next_focus_down")?.let { view.nextFocusDownId = it }
-        props.getNumberAsInt("next_focus_left")?.let { view.nextFocusLeftId = it }
-        props.getNumberAsInt("next_focus_right")?.let { view.nextFocusRightId = it }
+private fun applyFocusNavigation(view: View, props: Map<String, Any?>) {
+    props.getNumberAsInt("next_focus_up")?.let { view.nextFocusUpId = it }
+    props.getNumberAsInt("next_focus_down")?.let { view.nextFocusDownId = it }
+    props.getNumberAsInt("next_focus_left")?.let { view.nextFocusLeftId = it }
+    props.getNumberAsInt("next_focus_right")?.let { view.nextFocusRightId = it }
+}
+
+private fun applyAccessibility(view: View, props: Map<String, Any?>) {
+
+    when (props.getString("importantForAccessibility")?.lowercase()) {
+        "yes" -> view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        "no" -> view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        "auto", null -> {}
     }
 
-    private fun applyAccessibility(view: View, props: Map<String, Any?>) {
 
-        when (props.getString("importantForAccessibility")?.lowercase()) {
-            "yes"  -> view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-            "no"   -> view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            "auto", null -> {}
-        }
+    props.getString("accessibilityLabel")?.takeIf { it.isNotBlank() }?.let { label ->
 
-
-        props.getString("accessibilityLabel")?.takeIf { it.isNotBlank() }?.let { label ->
-
-            if (view !is TextView || view.text.isNullOrBlank()) view.contentDescription = label
-        }
-        props.getString("accessibilityHint")?.takeIf { it.isNotBlank() }?.let { hint ->
-            ViewCompat.replaceAccessibilityAction(
-                view,
-                AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
-                hint
-            ) { _, _ -> false }
-            try { view.tooltipText = hint } catch (_: Throwable) {}
-        }
-
-        if (props.getBooleanSafe("isHeading") == true) {
-            ViewCompat.setAccessibilityHeading(view, true)
+        if (view !is TextView || view.text.isNullOrBlank()) view.contentDescription = label
+    }
+    props.getString("accessibilityHint")?.takeIf { it.isNotBlank() }?.let { hint ->
+        ViewCompat.replaceAccessibilityAction(
+            view,
+            AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+            hint
+        ) { _, _ -> false }
+        try {
+            view.tooltipText = hint
+        } catch (_: Throwable) {
         }
     }
+
+    if (props.getBooleanSafe("isHeading") == true) {
+        ViewCompat.setAccessibilityHeading(view, true)
+    }
+}
 }
 
 private fun applyVisualProps(view: View, props: Map<String, Any?>, context: Context) {
@@ -331,8 +368,8 @@ private fun Map<String, Any?>.getNumberAsInt(key: String): Int? = when (val v = 
 
 private fun Map<String, Any?>.getBooleanSafe(key: String): Boolean? = when (val v = this[key]) {
     is Boolean -> v
-    is Number  -> v.toInt() != 0
-    is String  -> v.equals("true", ignoreCase = true)
+    is Number -> v.toInt() != 0
+    is String -> v.equals("true", ignoreCase = true)
     else -> null
 }
 
