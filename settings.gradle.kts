@@ -12,10 +12,11 @@ pluginManagement {
     }
 }
 gradle.settingsEvaluated {
-    val githubUsername =
-        settings.extra["GITHUB_USERNAME"] as? String ?: System.getenv("GITHUB_USERNAME")
-    val githubToken = settings.extra["GITHUB_TOKEN"] as? String ?: System.getenv("GITHUB_TOKEN")
-    val githubMavenUrl: String? = providers.gradleProperty("GITHUB_MAVEN_URL").orNull
+    val githubUsername = System.getenv("GITHUB_USERNAME")
+        ?: providers.gradleProperty("GITHUB_USERNAME").orNull
+    val githubToken = System.getenv("GITHUB_TOKEN")
+        ?: providers.gradleProperty("GITHUB_TOKEN").orNull
+    val githubMavenUrl = "https://maven.pkg.github.com/squad3-layer/ds-squad03-layer"
 
     enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
     dependencyResolutionManagement {
