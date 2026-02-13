@@ -1,7 +1,9 @@
 package com.domleondev.designsystem.runtime
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
@@ -36,7 +38,10 @@ internal class DesignSystemImpl @Inject constructor(
     override fun eventStream(): DsEventStream = _eventStream
     private val viewRegistry = linkedMapOf<String, View>()
 
+    private var submitButton: DsButton? = null
+
     override fun createView(context: Context, component: Component): View? {
+
 
         val view = factory.createView(context, component) ?: return null
 
@@ -50,14 +55,48 @@ internal class DesignSystemImpl @Inject constructor(
         applyAccessibility(view, props)
 
         when (view) {
-            is TextView -> applyTextProps(view, props, context)
             is DsInput -> {
                 applyInputProps(view, props)
                 inputRegistry[id] = view
-                rulesRegistry[id] = props.parseValidationRules()
+
+                val rules = props.parseValidationRules()
+                rulesRegistry[id] = rules
+
+
                 view.doAfterTextChanged { text ->
-                    eventsFlow.tryEmit(DsUiEvent.Change(id, text?.toString().orEmpty()))
+                    val value = text?.toString().orEmpty()
+
+                    eventsFlow.tryEmit(DsUiEvent.Change(id, value))
+
+
+                    if (props.getBooleanSafe("validateOnChange") == true) {
+                        val error = validateField(id, value, rules)
+
+                        setError(id, error)
+                    }
+                    updateSubmitButtonState()
                 }
+            }
+            is DsButton -> {
+                applyTextProps(view, props, context)
+
+                if (props["submit"] as? Boolean == true) {
+                    submitButton = view
+                    view.isEnabled = false
+                    view.alpha = 0.5f
+                }
+                view.setOnClickListener {
+                    if (props["submit"] as? Boolean == true) {
+                        handleSubmitAction(id, props)
+                    } else {
+                        eventsFlow.tryEmit(DsUiEvent.Action(id, props["action"]?.toString() ?: ""))
+                    }
+                }
+        if (id.isNotEmpty()) viewRegistry[id] = view
+        return view
+            }
+            is TextView -> {
+                applyTextProps(view, props, context)
             }
         }
         if (id.isNotEmpty()) {
@@ -91,14 +130,50 @@ internal class DesignSystemImpl @Inject constructor(
         inputRegistry[id]?.let { input ->
             if (message != null) {
                 showErrorA11y(input, message)
+                updateInputBorderStyle(input, "#FF0000")
             } else {
                 clearErrorA11y(input)
+                updateInputBorderStyle(input, "#CCCCCC")
             }
         }
     }
+    private fun updateInputBorderStyle(view: View, color: String) {
+        val shape = view.background as? GradientDrawable ?: GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 5.dpToPx(view.context).toFloat()
+        }
 
+        try {
+            val strokeWidth = 2.dpToPx(view.context)
+            shape.setStroke(strokeWidth, Color.parseColor(color))
+            view.background = shape
+            view.invalidate()
+        } catch (e: Exception) {
+            android.util.Log.e("DS_DEBUG", "❌ Erro visual: ${e.message}")
+        }
+    }
+    private fun updateSubmitButtonState() {
+        var isFormValid = true
+
+
+        inputRegistry.keys.forEach { inputId ->
+            val input = inputRegistry[inputId]
+            val rules = rulesRegistry[inputId].orEmpty()
+            val value = input?.text?.toString().orEmpty()
+
+
+            if (validateField(inputId, value, rules) != null) {
+                isFormValid = false
+            }
+        }
+
+        submitButton?.let { button ->
+            button.isEnabled = isFormValid
+            button.alpha = if (isFormValid) 1.0f else 0.5f
+        }
+    }
     private fun handleSubmitAction(id: String, props: Map<String, Any?>) {
-        when (val result = validate()) {
+        when (val result =  validate()) {
             is DsValidationResult.Valid -> {
                 eventsFlow.tryEmit(DsUiEvent.Submit(id))
             }
@@ -147,8 +222,11 @@ internal class DesignSystemImpl @Inject constructor(
                 }
 
                 "regex" -> {
-                    val pattern = rule.params["pattern"]?.toString()?.toRegex() ?: continue
-                    if (!pattern.matches(value)) return rule.message.ifBlank { "Formato inválido" }
+                    val patternString = rule.params["pattern"]?.toString() ?: continue
+                    val pattern = patternString.toRegex(RegexOption.IGNORE_CASE)
+                    if (!pattern.matches(value)) {
+                        return rule.message.ifBlank { "Formato inválido" }
+                    }
                 }
             }
         }
@@ -349,4 +427,7 @@ private fun Map<String, Any?>.parseValidationRules(): List<DsValidationRule> {
             )
         }
     }
+}
+private fun Int.dpToPx(context: Context): Int {
+    return (this * context.resources.displayMetrics.density).toInt()
 }
