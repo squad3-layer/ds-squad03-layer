@@ -109,6 +109,20 @@ internal class DesignSystemImpl @Inject constructor(
         }
     }
 
+    override fun getValue(id: String): String? {
+        return inputRegistry[id]?.text?.toString()
+    }
+
+    override fun setError(id: String, message: String?) {
+        inputRegistry[id]?.let { input ->
+            if (message != null) {
+                showErrorA11y(input, message)
+            } else {
+                clearErrorA11y(input)
+            }
+        }
+    }
+
     private fun handleSubmitAction(id: String, props: Map<String, Any?>) {
         when (val result = validate()) {
             is DsValidationResult.Valid -> {
