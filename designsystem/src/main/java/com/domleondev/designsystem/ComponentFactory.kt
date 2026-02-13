@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import androidx.core.view.ViewCompat
 import com.domleondev.designsystem.domain.model.Component
 import com.example.mylibrary.ds.input.DsInput
 import com.example.mylibrary.ds.button.DsButton
@@ -28,13 +27,10 @@ class ComponentFactory @Inject constructor() {
             "Button" -> createButtonView(context, props)
             else -> createErrorView(context, type)
         }
-
         view?.let {
 
             applyVisualProps(it, props, context)
-
             applyMargins(it, props, context)
-
             it.isEnabled = (props["enabled"] as? Boolean) ?: true
         }
 
@@ -44,8 +40,8 @@ class ComponentFactory @Inject constructor() {
     private fun createErrorView(context: Context, type: String): View {
         return TextView(context).apply {
             text = "ERRO: Componente '$type' não mapeado"
-            setTextColor(android.graphics.Color.RED)
-            setBackgroundColor(android.graphics.Color.YELLOW)
+            setTextColor(Color.RED)
+            setBackgroundColor(Color.YELLOW)
             setPadding(20, 20, 20, 20)
         }
     }
@@ -72,6 +68,27 @@ class ComponentFactory @Inject constructor() {
     private fun createInputView(context: Context, props: Map<String, Any>?): DsInput {
         return DsInput(context).apply {
             hint = props?.get("hint")?.toString() ?: ""
+
+            val height = ((props?.get("height") as? Double)?.toInt() ?: 48).dpToPx(context)
+            layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                height
+            )
+
+            val keyboardTypeString = props?.get("keyboardType")?.toString()?.uppercase()
+            val keyboardType = when (keyboardTypeString) {
+                "EMAIL" -> DsInput.KeyboardType.EMAIL
+                "PASSWORD" -> DsInput.KeyboardType.PASSWORD
+                "NUMBER" -> DsInput.KeyboardType.NUMBER
+                "PHONE" -> DsInput.KeyboardType.PHONE
+                else -> DsInput.KeyboardType.TEXT
+            }
+            setKeyboardType(keyboardType)
+
+            val inputId = props?.get("id")?.toString()
+            if (inputId != null) {
+                id = context.resources.getIdentifier(inputId, "id", context.packageName)
+            }
         }
     }
 
@@ -90,31 +107,30 @@ class ComponentFactory @Inject constructor() {
         val borderColor = props?.get("border_color")?.toString()
 
 
-        if (bgColor != null || borderRadius > 0f || borderColor != null) {
-            val shape = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                bgColor?.let { setColor(Color.parseColor(it)) }
-                borderColor?.let {
-                    setStroke(2.dpToPx(context), Color.parseColor(it))
-                }
-                cornerRadius = borderRadius.dpToPx(context).toFloat()
-            }
-            view.background = shape
-        }
+        if (bgColor != null ) {
+            val colorInt = Color.parseColor(bgColor)
 
+            if (view is DsButton) {
+                view.backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
+            } else {
+
+                val shape = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(colorInt)
+                    borderColor?.let {
+                        setStroke(2.dpToPx(context), Color.parseColor(it))
+                    }
+                    cornerRadius = borderRadius.dpToPx(context).toFloat()
+                }
+                view.background = shape
+            }
+        }
 
         view.visibility = if (props?.get("visibility")?.toString() == "hidden") View.GONE else View.VISIBLE
 
-
-        val pLeft = ((props?.get("padding_left") as? Double)?.toInt() ?: 0).dpToPx(context)
-        val pRight = ((props?.get("padding_right") as? Double)?.toInt() ?: 0).dpToPx(context)
-        val pTop = ((props?.get("padding_top") as? Double)?.toInt() ?: 0).dpToPx(context)
-        val pBottom = ((props?.get("padding_bottom") as? Double)?.toInt() ?: 0).dpToPx(context)
-        view.setPadding(pLeft, pTop, pRight, pBottom)
-
         val textColor = props?.get("textColor")?.toString()
-        if (textColor != null && view is android.widget.TextView) {
-            view.setTextColor(android.graphics.Color.parseColor(textColor))
+        if (textColor != null && view is TextView) {
+            view.setTextColor(Color.parseColor(textColor))
         }
     }
 
