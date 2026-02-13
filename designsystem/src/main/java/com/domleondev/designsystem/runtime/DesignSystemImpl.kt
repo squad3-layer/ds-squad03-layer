@@ -82,32 +82,6 @@ internal class DesignSystemImpl @Inject constructor(
             view.alpha = if (enabled) 1.0f else 0.5f
         }
     }
-    override fun getValue(id: String): String? {
-        return inputRegistry[id]?.text?.toString()
-    }
-    override fun setError(id: String, message: String?) {
-        inputRegistry[id]?.let { input ->
-            if (message != null) {
-                showErrorA11y(input, message)
-            } else {
-                clearErrorA11y(input)
-            }
-        }
-    }
-
-    override fun getValue(id: String): String? {
-        return inputRegistry[id]?.text?.toString()
-    }
-
-    override fun setError(id: String, message: String?) {
-        inputRegistry[id]?.let { input ->
-            if (message != null) {
-                showErrorA11y(input, message)
-            } else {
-                clearErrorA11y(input)
-            }
-        }
-    }
 
     override fun getValue(id: String): String? {
         return inputRegistry[id]?.text?.toString()
