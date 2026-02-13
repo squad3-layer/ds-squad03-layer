@@ -151,6 +151,7 @@ internal class DesignSystemImpl @Inject constructor(
         } catch (e: Exception) {
             android.util.Log.e("DS_DEBUG", "❌ Erro visual: ${e.message}")
         }
+        return null
     }
     private fun updateSubmitButtonState() {
         var isFormValid = true
@@ -233,6 +234,14 @@ internal class DesignSystemImpl @Inject constructor(
         return null
     }
 
+    private fun applyAlignment(view: View, props: Map<String, Any?>) {
+        val align = props.getString("align")?.lowercase()
+        if (view is TextView) {
+            when (align) {
+                "center" -> {
+                    view.textAlignment = View.TEXT_ALIGNMENT_CENTER
+                    view.gravity = android.view.Gravity.CENTER_HORIZONTAL
+                }
 
     private fun showErrorA11y(input: DsInput, message: String) {
 
