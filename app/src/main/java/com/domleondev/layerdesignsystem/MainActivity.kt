@@ -3,6 +3,7 @@ package com.domleondev.layerdesignsystem
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -33,12 +34,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         firebaseAnalytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(this)
 
-        viewModel.loadScreen("testeForgotPassword")
+        viewModel.loadScreen("login_screen")
         observeViewModel()
         observeDesignSystemEvents()
     }
