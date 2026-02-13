@@ -107,8 +107,8 @@ class ComponentFactory @Inject constructor() {
         val borderColor = props?.get("border_color")?.toString()
 
 
-        if (bgColor != null ) {
-            val colorInt = Color.parseColor(bgColor)
+        if (bgColor != null || borderColor != null || borderRadius > 0f) {
+            val colorInt = if (bgColor != null) Color.parseColor(bgColor) else Color.TRANSPARENT
 
             if (view is DsButton) {
                 view.backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
@@ -117,6 +117,7 @@ class ComponentFactory @Inject constructor() {
                 val shape = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     setColor(colorInt)
+
                     borderColor?.let {
                         setStroke(2.dpToPx(context), Color.parseColor(it))
                     }
