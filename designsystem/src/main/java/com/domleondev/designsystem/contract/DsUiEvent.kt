@@ -37,4 +37,5 @@ interface DesignSystem {
     fun setEnabled(id: String, enabled: Boolean)
     fun getValue(id: String): String?
     fun setError(id: String, message: String?)
+    fun clear()
 }

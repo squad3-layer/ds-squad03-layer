@@ -6,6 +6,9 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.widget.LinearLayout
 import android.widget.TextView
 import com.domleondev.designsystem.domain.model.Component
 import com.example.mylibrary.ds.input.DsInput
@@ -22,9 +25,12 @@ class ComponentFactory @Inject constructor() {
         val props = component.props ?: emptyMap()
 
         val view = when (type) {
+            "Header" -> createHeaderView(context, props)
+            "MenuItem" -> createMenuItemView(context, props)
             "Text" -> createTextView(context, props)
             "Input" -> createInputView(context, props)
             "Button" -> createButtonView(context, props)
+            "News" -> createNewsCard(context, props)
             else -> createErrorView(context, type)
         }
         view?.let {
@@ -79,6 +85,7 @@ class ComponentFactory @Inject constructor() {
             val keyboardType = when (keyboardTypeString) {
                 "EMAIL" -> DsInput.KeyboardType.EMAIL
                 "PASSWORD" -> DsInput.KeyboardType.PASSWORD
+                "CPF" -> DsInput.KeyboardType.CPF
                 "NUMBER" -> DsInput.KeyboardType.NUMBER
                 "PHONE" -> DsInput.KeyboardType.PHONE
                 else -> DsInput.KeyboardType.TEXT
@@ -100,6 +107,182 @@ class ComponentFactory @Inject constructor() {
         }
     }
 
+    private fun createHeaderView(context: Context, props: Map<String, Any>?): View {
+        return androidx.constraintlayout.widget.ConstraintLayout(context).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(0.dpToPx(context), 24.dpToPx(context), 0.dpToPx(context), 0.dpToPx(context))
+
+            val leftIcon = android.widget.ImageView(context).apply {
+                id = View.generateViewId()
+                val showBack = props?.get("showBack") as? Boolean ?: false
+                val showMenu = props?.get("showMenu") as? Boolean ?: false
+
+                val iconRes = when {
+                    showBack -> context.resources.getIdentifier("ic_back", "drawable", context.packageName)
+                    showMenu -> context.resources.getIdentifier("ic_menu", "drawable", context.packageName)
+                    else -> 0
+                }
+
+                if (iconRes != 0) {
+                    setImageResource(iconRes)
+                    visibility = View.VISIBLE
+                } else {
+                    visibility = View.GONE
+                }
+
+                layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
+                    24.dpToPx(context), 24.dpToPx(context)
+                ).apply {
+                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                    topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                    bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                }
+            }
+
+            val titleView = TextView(context).apply {
+                id = View.generateViewId()
+                text = props?.get("title")?.toString() ?: ""
+
+                val colorHex = props?.get("textColor")?.toString() ?: "#000000"
+                try {
+                    setTextColor(android.graphics.Color.parseColor(colorHex))
+                } catch (e: Exception) {
+                    setTextColor(android.graphics.Color.BLACK)
+                }
+
+                val customSize = (props?.get("titleSize") as? Double)?.toFloat() ?: 18f
+                textSize = customSize
+
+                val fontName = props?.get("typeface")?.toString()
+                if (fontName != null) {
+                    val fontResId = context.resources.getIdentifier(fontName, "font", context.packageName)
+                    if (fontResId != 0) {
+                        typeface = androidx.core.content.res.ResourcesCompat.getFont(context, fontResId)
+                    }
+                } else {
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                }
+
+                visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
+
+                layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
+                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT,
+                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+
+                    val marginStart = if (leftIcon.visibility == View.VISIBLE) 12.dpToPx(context) else 0
+
+                    startToEnd = leftIcon.id
+                    topToTop = leftIcon.id
+                    bottomToBottom = leftIcon.id
+                    setMargins(marginStart, 0, 0, 0)
+                }
+            }
+
+            addView(leftIcon)
+            addView(titleView)
+        }
+    }
+
+    private fun createNewsCard(context: Context, props: Map<String, Any>?): View {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+            setPadding(12.dpToPx(context), 12.dpToPx(context), 12.dpToPx(context), 12.dpToPx(context))
+
+            val imageView = android.widget.ImageView(context).apply {
+                id = View.generateViewId()
+                layoutParams = LinearLayout.LayoutParams(100.dpToPx(context), 100.dpToPx(context))
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+
+                val url = props?.get("imageUrl")?.toString()
+            }
+
+            val textContainer = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
+                    marginStart = 12.dpToPx(context)
+                }
+
+                val titleView = TextView(context).apply {
+                    text = props?.get("title")?.toString() ?: ""
+                    textSize = 16f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                    maxLines = 2
+                }
+
+                val descView = TextView(context).apply {
+                    text = props?.get("description")?.toString() ?: ""
+                    textSize = 14f
+                    maxLines = 3
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+
+                addView(titleView)
+                addView(descView)
+            }
+
+            addView(imageView)
+            addView(textContainer)
+        }
+    }
+
+    private fun createMenuItemView(context: Context, props: Map<String, Any>?): View {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+
+            setPadding(24.dpToPx(context), 16.dpToPx(context), 24.dpToPx(context), 16.dpToPx(context))
+
+
+            isClickable = true
+            isFocusable = true
+            val outValue = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+
+
+            val iconView = android.widget.ImageView(context).apply {
+                val iconName = props?.get("icon")?.toString() // Ex: "ic_heart", "ic_notification"
+                if (iconName != null) {
+                    val resId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+                    if (resId != 0) setImageResource(resId)
+                }
+                layoutParams = LinearLayout.LayoutParams(24.dpToPx(context), 24.dpToPx(context))
+
+                val iconColor = props?.get("iconColor")?.toString() ?: "#424242"
+                setColorFilter(Color.parseColor(iconColor))
+            }
+
+            val textView = TextView(context).apply {
+                text = props?.get("text")?.toString() ?: ""
+                textSize = 16f
+                val colorHex = props?.get("textColor")?.toString() ?: "#000000"
+                setTextColor(Color.parseColor(colorHex))
+
+                val fontName = props?.get("typeface")?.toString()
+                if (fontName != null) {
+                    val fontResId = context.resources.getIdentifier(fontName, "font", context.packageName)
+                    if (fontResId != 0) typeface = androidx.core.content.res.ResourcesCompat.getFont(context, fontResId)
+                }
+
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginStart = 24.dpToPx(context) }
+            }
+
+            addView(iconView)
+            addView(textView)
+        }
+    }
 
     private fun applyVisualProps(view: View, props: Map<String, Any>?, context: Context) {
         val bgColor = props?.get("backgroundColor")?.toString()
