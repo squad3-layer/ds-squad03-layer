@@ -92,17 +92,13 @@ internal class  DesignSystemImpl @Inject constructor(
                         eventsFlow.tryEmit(DsUiEvent.Action(id, props["action"]?.toString() ?: ""))
                     }
                 }
-        if (id.isNotEmpty()) viewRegistry[id] = view
-        return view
             }
             is androidx.constraintlayout.widget.ConstraintLayout -> {
                 if (component.type == "Header") {
                     val iconButton = view.getChildAt(0)
 
                     val isMenu = props["showMenu"] as? Boolean ?: false
-
                     val defaultAction = if (isMenu) "menu:open" else "navigate:back"
-
                     val finalAction = props["action"]?.toString() ?: defaultAction
 
                     iconButton?.setOnClickListener {
