@@ -185,6 +185,21 @@ internal class  DesignSystemImpl @Inject constructor(
             val rules = rulesRegistry[inputId].orEmpty()
             val value = input?.text?.toString().orEmpty()
 
+    private fun validateField(
+        id: String,
+        value: String,
+        rules: List<DsValidationRule>
+    ): String? {
+        for (rule in rules) {
+            when (rule.type.lowercase()) {
+                "required" -> if (value.isBlank()) return rule.message.ifBlank { "Campo obrigatório" }
+                "email" -> if (!android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches())
+                    return rule.message.ifBlank { "E-mail inválido" }
+
+                "minlength" -> {
+                    val min = (rule.params["min"] as? Number)?.toInt() ?: 0
+                    if (value.length < min) return rule.message.ifBlank { "Mínimo de $min caracteres" }
+                }
 
             if (validateField(inputId, value, rules) != null) {
                 isFormValid = false
@@ -206,6 +221,9 @@ internal class  DesignSystemImpl @Inject constructor(
                 announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
             }
         }
+        ViewCompat.setStateDescription(input, message)
+        ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE)
+        input.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
     }
 
     override fun validate(vararg fieldIds: String): DsValidationResult {
@@ -271,6 +289,14 @@ internal class  DesignSystemImpl @Inject constructor(
         return null
     }
 
+    private fun applyAlignment(view: View, props: Map<String, Any?>) {
+        val align = props.getString("align")?.lowercase()
+        if (view is TextView) {
+            when (align) {
+                "center" -> {
+                    view.textAlignment = View.TEXT_ALIGNMENT_CENTER
+                    view.gravity = android.view.Gravity.CENTER_HORIZONTAL
+                }
 
     private fun showErrorA11y(input: DsInput, message: String) {
 
