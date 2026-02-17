@@ -10,7 +10,7 @@ class FirebaseRemoteConfigRepository @Inject constructor() : RemoteConfigReposit
     override fun fetchScreenConfig(key: String, onComplete: (String) -> Unit) {
         val remoteConfig = Firebase.remoteConfig
         val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = 3600
+            minimumFetchIntervalInSeconds = 0
         }
         remoteConfig.setConfigSettingsAsync(configSettings)
 
