@@ -24,7 +24,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-internal class DesignSystemImpl @Inject constructor(
+internal class  DesignSystemImpl @Inject constructor(
     private val factory: ComponentFactory
 ) : DesignSystem {
 
@@ -95,6 +95,30 @@ internal class DesignSystemImpl @Inject constructor(
         if (id.isNotEmpty()) viewRegistry[id] = view
         return view
             }
+            is androidx.constraintlayout.widget.ConstraintLayout -> {
+                if (component.type == "Header") {
+                    val iconButton = view.getChildAt(0)
+
+                    val isMenu = props["showMenu"] as? Boolean ?: false
+
+                    val defaultAction = if (isMenu) "menu:open" else "navigate:back"
+
+                    val finalAction = props["action"]?.toString() ?: defaultAction
+
+                    iconButton?.setOnClickListener {
+                        android.util.Log.d("DS_DEBUG", "Header clicado! Enviando action: $finalAction")
+                        eventsFlow.tryEmit(DsUiEvent.Action(id, finalAction))
+                    }
+                }
+            }
+            is LinearLayout -> {
+                if (component.type == "MenuItem") {
+                    view.setOnClickListener {
+                        val action = props["action"]?.toString()
+                        action?.let { eventsFlow.tryEmit(DsUiEvent.Action(id, it)) }
+                    }
+                }
+            }
             is TextView -> {
                 applyTextProps(view, props, context)
             }
@@ -161,6 +185,21 @@ internal class DesignSystemImpl @Inject constructor(
             val rules = rulesRegistry[inputId].orEmpty()
             val value = input?.text?.toString().orEmpty()
 
+    private fun validateField(
+        id: String,
+        value: String,
+        rules: List<DsValidationRule>
+    ): String? {
+        for (rule in rules) {
+            when (rule.type.lowercase()) {
+                "required" -> if (value.isBlank()) return rule.message.ifBlank { "Campo obrigatório" }
+                "email" -> if (!android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches())
+                    return rule.message.ifBlank { "E-mail inválido" }
+
+                "minlength" -> {
+                    val min = (rule.params["min"] as? Number)?.toInt() ?: 0
+                    if (value.length < min) return rule.message.ifBlank { "Mínimo de $min caracteres" }
+                }
 
             if (validateField(inputId, value, rules) != null) {
                 isFormValid = false
@@ -182,6 +221,9 @@ internal class DesignSystemImpl @Inject constructor(
                 announceGlobalErrorIfNeeded(result.errors.values.firstOrNull())
             }
         }
+        ViewCompat.setStateDescription(input, message)
+        ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE)
+        input.sendAccessibilityEvent(AccessibilityEvent.TYPE_ANNOUNCEMENT)
     }
 
     override fun validate(vararg fieldIds: String): DsValidationResult {
@@ -221,6 +263,20 @@ internal class DesignSystemImpl @Inject constructor(
                     if (value.length < min) return rule.message.ifBlank { "Mínimo de $min caracteres" }
                 }
 
+                "cpf" -> {
+                    if (!isValidCpf(value)) {
+                        return rule.message.ifBlank { "CPF inválido" }
+                    }
+                }
+
+                "match" -> {
+                    val targetId = rule.params["targetId"]?.toString() ?: ""
+                    val targetValue = getValue(targetId).orEmpty()
+                    if (value != targetValue) {
+                        return rule.message.ifBlank { "Os campos não coincidem" }
+                    }
+                }
+
                 "regex" -> {
                     val patternString = rule.params["pattern"]?.toString() ?: continue
                     val pattern = patternString.toRegex(RegexOption.IGNORE_CASE)
@@ -233,6 +289,14 @@ internal class DesignSystemImpl @Inject constructor(
         return null
     }
 
+    private fun applyAlignment(view: View, props: Map<String, Any?>) {
+        val align = props.getString("align")?.lowercase()
+        if (view is TextView) {
+            when (align) {
+                "center" -> {
+                    view.textAlignment = View.TEXT_ALIGNMENT_CENTER
+                    view.gravity = android.view.Gravity.CENTER_HORIZONTAL
+                }
 
     private fun showErrorA11y(input: DsInput, message: String) {
 
@@ -252,6 +316,22 @@ internal class DesignSystemImpl @Inject constructor(
         }
         ViewCompat.setStateDescription(input, null)
         ViewCompat.setAccessibilityLiveRegion(input, ViewCompat.ACCESSIBILITY_LIVE_REGION_NONE)
+    }
+
+    private fun isValidCpf(cpf: String): Boolean {
+        val cleanCpf = cpf.replace(Regex("[^0-9]"), "")
+        if (cleanCpf.length != 11 || cleanCpf.all { it == cleanCpf[0] }) return false
+
+        fun calculateDigit(subset: String, weights: IntArray): Int {
+            val sum = subset.mapIndexed { i, c -> Character.getNumericValue(c) * weights[i] }.sum()
+            val remainder = sum % 11
+            return if (remainder < 2) 0 else 11 - remainder
+        }
+
+        val digit1 = calculateDigit(cleanCpf.substring(0, 9), intArrayOf(10, 9, 8, 7, 6, 5, 4, 3, 2))
+        val digit2 = calculateDigit(cleanCpf.substring(0, 10), intArrayOf(11, 10, 9, 8, 7, 6, 5, 4, 3, 2))
+
+        return cleanCpf[9].digitToInt() == digit1 && cleanCpf[10].digitToInt() == digit2
     }
 
     private fun announceGlobalErrorIfNeeded(firstMessage: String?) {
@@ -337,6 +417,15 @@ internal class DesignSystemImpl @Inject constructor(
             ViewCompat.setAccessibilityHeading(view, true)
         }
     }
+
+    override fun clear() {
+        inputRegistry.clear()
+        rulesRegistry.clear()
+        viewRegistry.clear()
+        submitButton = null
+        android.util.Log.d("DS_DEBUG", "🧹 Motor limpo para a nova tela")
+    }
+
 }
 
 private fun applyTextProps(view: TextView, props: Map<String, Any?>, context: Context) {

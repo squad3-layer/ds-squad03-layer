@@ -40,9 +40,13 @@ class MainActivity : AppCompatActivity() {
 
         firebaseAnalytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(this)
 
-        viewModel.loadScreen("login_screen")
+        viewModel.loadScreen("home_screen")
         observeViewModel()
         observeDesignSystemEvents()
+
+        binding.containerMenu.setOnClickListener {
+            binding.containerMenu.visibility = View.GONE
+        }
     }
 
     private fun observeViewModel() {
@@ -53,7 +57,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 is UiState.Success -> {
                     binding.progressBar.visibility = View.GONE
-                    uiRenderer.render(binding.containerLayout, state.screen)
+
+                    val pageComponents = state.screen.components.filter { it.type != "MenuItem" }
+                    uiRenderer.render(binding.containerLayout, state.screen.copy(components = pageComponents))
+
+                    val menuComponents = state.screen.components.filter { it.type == "MenuItem" }
+                    if (menuComponents.isNotEmpty()) {
+                        uiRenderer.render(binding.menuContent, state.screen.copy(components = menuComponents))
+                    }
                 }
                 is UiState.Error -> {
                     binding.progressBar.visibility = View.GONE
@@ -74,6 +85,9 @@ class MainActivity : AppCompatActivity() {
                     }
                     is DsUiEvent.Action -> {
                         android.util.Log.d("APP_EVENT", "Action recebida: ${event.action}")
+                        if (event.action == "menu:open") {
+                            showSideMenu()
+                        }
                         handleNavigation(event.action)
                     }
                     is DsUiEvent.Submit -> {
@@ -85,6 +99,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun showSideMenu() {
+        binding.containerMenu.visibility = View.VISIBLE
+    }
 
     private fun handleNavigation(action: String) {
         if (action.startsWith("navigate:")) {
@@ -94,7 +111,9 @@ class MainActivity : AppCompatActivity() {
                 "login" -> {
                     android.util.Log.d("APP_EVENT", "Sucesso! Saindo da tela...")
                     Toast.makeText(this, "Navegando para o Login...", Toast.LENGTH_SHORT).show()
-
+                }
+                "back" -> {
+                    finish()
                 }
             }
         }
