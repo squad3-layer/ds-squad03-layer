@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         firebaseAnalytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(this)
 
-        viewModel.loadScreen("home_screen")
+        viewModel.loadScreen("filters_screen")
         observeViewModel()
         observeDesignSystemEvents()
 

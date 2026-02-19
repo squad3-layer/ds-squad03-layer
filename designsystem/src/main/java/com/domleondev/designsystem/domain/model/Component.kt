@@ -10,5 +10,8 @@ data class Component(
     val id: String? = null,
 
     @SerializedName("props")
-    val props: Map<String, Any>? = null
+    val props: Map<String, Any>? = null,
+
+    @SerializedName("children")
+    val children: List<Component>? = null
 )
