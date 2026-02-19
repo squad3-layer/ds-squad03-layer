@@ -29,7 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top"
-            android:layout_marginTop="60dp"
+            android:layout_marginTop="80dp"
             android:layout_marginHorizontal="20dp"
             android:background="@drawable/ds_menu_background"
             android:elevation="8dp"

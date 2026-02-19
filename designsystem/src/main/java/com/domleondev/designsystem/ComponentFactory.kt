@@ -10,9 +10,11 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.marginBottom
 import com.domleondev.designsystem.domain.model.Component
 import com.example.mylibrary.ds.input.DsInput
 import com.example.mylibrary.ds.button.DsButton
+import coil.load
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,10 +29,15 @@ class ComponentFactory @Inject constructor() {
         val view = when (type) {
             "Header" -> createHeaderView(context, props)
             "MenuItem" -> createMenuItemView(context, props)
+            "HorizontalContainer" -> createHorizontalContainer(context, component)
             "Text" -> createTextView(context, props)
             "Input" -> createInputView(context, props)
             "Button" -> createButtonView(context, props)
-            "News" -> createNewsCard(context, props)
+            "NewsCard" -> createNewsCard(context, props)
+            "IconButton" -> createIconButtonView(context, props)
+            "VerticalContainer" -> createVerticalContainer(context, component)
+            "SelectableChip" -> createChipView(context, props)
+            "FlowContainer" -> createFlowContainer(context)
             else -> createErrorView(context, type)
         }
         view?.let {
@@ -68,6 +75,84 @@ class ComponentFactory @Inject constructor() {
             if (weight == "bold") {
                 setTypeface(null, Typeface.BOLD)
             }
+        }
+    }
+
+    private fun createIconButtonView(context: Context, props: Map<String, Any>?): View {
+        return android.widget.ImageView(context).apply {
+            val iconName = props?.get("icon")?.toString() ?: "ic_filter"
+            val resId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+            if (resId != 0) setImageResource(resId)
+
+            layoutParams = LinearLayout.LayoutParams(40.dpToPx(context), 40.dpToPx(context))
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+
+            val outValue = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+        }
+    }
+
+    private fun createHorizontalContainer(context: Context, component: Component): LinearLayout {
+        val props = component.props ?: emptyMap()
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+    }
+
+    private fun createVerticalContainer(context: Context, component: Component): LinearLayout {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        }
+    }
+
+    private fun createChipView(context: Context, props: Map<String, Any>?): TextView {
+        return TextView(context).apply {
+            id = View.generateViewId()
+            text = props?.get("text")?.toString() ?: ""
+            textSize = 10f
+            gravity = android.view.Gravity.CENTER
+            setPadding(24.dpToPx(context), 8.dpToPx(context), 24.dpToPx(context), 8.dpToPx(context))
+
+            val isSelected = props?.get("selected") as? Boolean ?: false
+
+            updateChipStyle(this, isSelected)
+
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+                marginEnd = 12.dpToPx(context)
+                bottomMargin = 14.dpToPx(context)
+            }
+        }
+    }
+
+    fun updateChipStyle(view: TextView, isSelected: Boolean) {
+        val context = view.context
+        val backgroundColor = if (isSelected) "#0056D2" else "#F3F3F3"
+        val textColor = if (isSelected) "#FFFFFF" else "#000000"
+
+        view.setTextColor(Color.parseColor(textColor))
+
+        val shape = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 19.dpToPx(context).toFloat()
+            setColor(Color.parseColor(backgroundColor))
+        }
+        view.background = shape
+    }
+
+    private fun createFlowContainer(context: Context): com.google.android.material.chip.ChipGroup {
+        return com.google.android.material.chip.ChipGroup(context).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+
+            isSingleLine = false
+
+            chipSpacingHorizontal = 8.dpToPx(context)
+            chipSpacingVertical = 8.dpToPx(context)
+
+            isSingleSelection = true
         }
     }
 
@@ -113,7 +198,7 @@ class ComponentFactory @Inject constructor() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setPadding(0.dpToPx(context), 24.dpToPx(context), 0.dpToPx(context), 0.dpToPx(context))
+            setPadding(0.dpToPx(context), 28.dpToPx(context), 0.dpToPx(context), 0.dpToPx(context))
 
             val leftIcon = android.widget.ImageView(context).apply {
                 id = View.generateViewId()
@@ -199,6 +284,12 @@ class ComponentFactory @Inject constructor() {
                 scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
 
                 val url = props?.get("imageUrl")?.toString()
+                if (!url.isNullOrEmpty()) {
+                    this.load(url) {
+                        crossfade(true)
+                        placeholder(android.R.drawable.progress_indeterminate_horizontal)
+                    }
+                }
             }
 
             val textContainer = LinearLayout(context).apply {
@@ -250,7 +341,7 @@ class ComponentFactory @Inject constructor() {
 
 
             val iconView = android.widget.ImageView(context).apply {
-                val iconName = props?.get("icon")?.toString() // Ex: "ic_heart", "ic_notification"
+                val iconName = props?.get("icon")?.toString()
                 if (iconName != null) {
                     val resId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
                     if (resId != 0) setImageResource(resId)
@@ -276,7 +367,7 @@ class ComponentFactory @Inject constructor() {
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { marginStart = 24.dpToPx(context) }
+                ).apply { marginStart = 24.dpToPx(context)}
             }
 
             addView(iconView)
@@ -342,6 +433,13 @@ class ComponentFactory @Inject constructor() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
+
+        val flex = (props?.get("flex") as? Number)?.toFloat() ?: 0f
+
+        if (flex > 0 && lp is LinearLayout.LayoutParams) {
+            lp.weight = flex
+            lp.width = 0
+        }
 
         lp.setMargins(
             ((props?.get("margin_left") as? Double)?.toInt() ?: 0).dpToPx(context),

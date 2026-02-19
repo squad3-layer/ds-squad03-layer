@@ -107,6 +107,11 @@ internal class  DesignSystemImpl @Inject constructor(
                     }
                 }
             }
+            is android.widget.ImageView -> {
+                view.setOnClickListener {
+                    eventsFlow.tryEmit(DsUiEvent.Action(id, action ?: ""))
+                }
+            }
             is LinearLayout -> {
                 if (component.type == "MenuItem") {
                     view.setOnClickListener {
@@ -114,9 +119,39 @@ internal class  DesignSystemImpl @Inject constructor(
                         action?.let { eventsFlow.tryEmit(DsUiEvent.Action(id, it)) }
                     }
                 }
+                component.children?.forEach { childComponent ->
+                    val childView = createView(context, childComponent)
+                    if (childView != null) {
+                        view.addView(childView)
+                    }
+                }
+            }
+            is com.google.android.material.chip.ChipGroup -> {
+                component.children?.forEach { childComponent ->
+                    val childView = createView(context, childComponent)
+                    if (childView != null) {
+                        view.addView(childView)
+                    }
+                }
             }
             is TextView -> {
                 applyTextProps(view, props, context)
+                if (component.type == "SelectableChip") {
+                    view.setOnClickListener {
+                        val parent = view.parent as? ViewGroup
+                        parent?.let { container ->
+                            for (i in 0 until container.childCount) {
+                                val child = container.getChildAt(i) as? TextView
+                                child?.let {
+                                    factory.updateChipStyle(it, false)
+                                }
+                            }
+                        }
+                        factory.updateChipStyle(view, true)
+
+                        eventsFlow.tryEmit(DsUiEvent.Change(id, props["value"]?.toString() ?: view.text.toString()))
+                    }
+                }
             }
         }
         if (id.isNotEmpty()) {
@@ -314,6 +349,12 @@ internal class  DesignSystemImpl @Inject constructor(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
+
+        val flex = (props["flex"] as? Number)?.toFloat() ?: 0f
+        if (flex > 0) {
+            lp.weight = flex
+            lp.width = 0
+        }
 
         fun Int.dp() = (this * context.resources.displayMetrics.density).toInt()
         lp.setMargins(
