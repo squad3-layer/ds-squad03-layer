@@ -166,6 +166,18 @@ internal class  DesignSystemImpl @Inject constructor(
                 }
             }
         }
+        if (id.isNotEmpty()) {
+            viewRegistry[id] = view
+        }
+
+        if (action != null) {
+            view.setOnClickListener {
+                eventsFlow.tryEmit(DsUiEvent.Action(id, action))
+                if (props["submit"] as? Boolean == true) {
+                    handleSubmitAction(id, props)
+                }
+            }
+        }
 
         return view
     }
