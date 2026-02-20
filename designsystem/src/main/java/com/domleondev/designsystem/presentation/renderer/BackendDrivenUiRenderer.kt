@@ -13,6 +13,7 @@ class BackendDrivenUiRenderer @Inject constructor(
 
     override fun render(container: ViewGroup, screen: ScreenDefinition) {
         container.removeAllViews()
+        designSystem.clear()
 
         screen.components.forEach { componentData ->
             val view = designSystem.createView(container.context, componentData)
