@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Singleton
+@dagger.hilt.android.scopes.ActivityScoped
 internal class  DesignSystemImpl @Inject constructor(
     private val factory: ComponentFactory
 ) : DesignSystem {
