@@ -38,6 +38,7 @@ class ComponentFactory @Inject constructor() {
             "VerticalContainer" -> createVerticalContainer(context, component)
             "SelectableChip" -> createChipView(context, props)
             "FlowContainer" -> createFlowContainer(context)
+            "DetailsImage" -> createDetailsImageView(context, props)
             else -> createErrorView(context, type)
         }
         view?.let {
@@ -153,6 +154,15 @@ class ComponentFactory @Inject constructor() {
             chipSpacingVertical = 8.dpToPx(context)
 
             isSingleSelection = true
+        }
+    }
+
+    private fun createDetailsImageView(context: Context, props: Map<String, Any>?): View {
+        return android.widget.ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 310.dpToPx(context))
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            val url = props?.get("imageUrl")?.toString()
+            load(url)
         }
     }
 
@@ -288,6 +298,7 @@ class ComponentFactory @Inject constructor() {
                     this.load(url) {
                         crossfade(true)
                         placeholder(android.R.drawable.progress_indeterminate_horizontal)
+                        transformations(coil.transform.RoundedCornersTransformation(8.dpToPx(context).toFloat()))
                     }
                 }
             }
