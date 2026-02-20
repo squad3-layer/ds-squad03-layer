@@ -13,8 +13,6 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.components.ActivityComponent
-import dagger.hilt.android.scopes.ActivityScoped
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -41,10 +39,10 @@ abstract class DesignSystemModule {
     ): RemoteConfigRepository
 
     @Module
-    @InstallIn(ActivityComponent::class)
+    @InstallIn(SingletonComponent::class)
     abstract class DsModule {
         @Binds
-        @ActivityScoped
+        @Singleton
         internal abstract fun bindDesignSystem(impl: DesignSystemImpl): DesignSystem
     }
 
