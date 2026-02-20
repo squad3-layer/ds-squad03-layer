@@ -41,10 +41,10 @@ abstract class DesignSystemModule {
     ): RemoteConfigRepository
 
     @Module
-    @InstallIn(ActivityComponent::class)
+    @InstallIn(SingletonComponent::class)
     abstract class DsModule {
         @Binds
-        @ActivityScoped
+        @Singleton
         internal abstract fun bindDesignSystem(impl: DesignSystemImpl): DesignSystem
     }
 
