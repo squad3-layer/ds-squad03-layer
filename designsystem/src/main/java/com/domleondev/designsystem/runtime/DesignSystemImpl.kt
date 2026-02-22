@@ -12,7 +12,6 @@ import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.widget.doAfterTextChanged
-import androidx.lifecycle.ViewModelProvider
 import com.domleondev.designsystem.ComponentFactory
 import com.domleondev.designsystem.contract.*
 import com.example.mylibrary.ds.button.DsButton
@@ -23,7 +22,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@dagger.hilt.android.scopes.ActivityScoped
+@Singleton
 internal class  DesignSystemImpl @Inject constructor(
     private val factory: ComponentFactory
 ) : DesignSystem {
@@ -58,20 +57,16 @@ internal class  DesignSystemImpl @Inject constructor(
             is DsInput -> {
                 applyInputProps(view, props)
                 inputRegistry[id] = view
-
                 val rules = props.parseValidationRules()
                 rulesRegistry[id] = rules
 
 
-                view.doAfterTextChanged { text ->
+                view.doAfterTextChanged { text: android.text.Editable? ->
                     val value = text?.toString().orEmpty()
-
                     eventsFlow.tryEmit(DsUiEvent.Change(id, value))
-
 
                     if (props.getBooleanSafe("validateOnChange") == true) {
                         val error = validateField(id, value, rules)
-
                         setError(id, error)
                     }
                     updateSubmitButtonState()
@@ -126,6 +121,17 @@ internal class  DesignSystemImpl @Inject constructor(
                     }
                 }
             }
+            is com.example.mylibrary.ds.toolbar.DsToolbar -> {
+                val backAction = props["action"]?.toString() ?: "navigate:back"
+                view.setBackButton(show = props["showBack"] as? Boolean ?: false) {
+                    eventsFlow.tryEmit(DsUiEvent.Action(id, backAction))
+                }
+                if (props["showMenu"] as? Boolean == true) {
+                    view.setHamburgerMenu {
+                        eventsFlow.tryEmit(DsUiEvent.Action(id, "menu:open"))
+                    }
+                }
+            }
             is com.google.android.material.chip.ChipGroup -> {
                 component.children?.forEach { childComponent ->
                     val childView = createView(context, childComponent)
@@ -134,24 +140,19 @@ internal class  DesignSystemImpl @Inject constructor(
                     }
                 }
             }
+            is com.example.mylibrary.ds.chip.DsChip -> {
+                view.setOnClickListener {
+                    val value = props["value"]?.toString() ?: props["text"]?.toString() ?: ""
+                    eventsFlow.tryEmit(DsUiEvent.Change(id, value))
+                }
+            }
+            is com.example.mylibrary.ds.card.notification.DsNotificationCard -> {
+                view.setOnClickListener {
+                    action?.let { eventsFlow.tryEmit(DsUiEvent.Action(id, it)) }
+                }
+            }
             is TextView -> {
                 applyTextProps(view, props, context)
-                if (component.type == "SelectableChip") {
-                    view.setOnClickListener {
-                        val parent = view.parent as? ViewGroup
-                        parent?.let { container ->
-                            for (i in 0 until container.childCount) {
-                                val child = container.getChildAt(i) as? TextView
-                                child?.let {
-                                    factory.updateChipStyle(it, false)
-                                }
-                            }
-                        }
-                        factory.updateChipStyle(view, true)
-
-                        eventsFlow.tryEmit(DsUiEvent.Change(id, props["value"]?.toString() ?: view.text.toString()))
-                    }
-                }
             }
         }
         if (id.isNotEmpty()) {
