@@ -15,6 +15,7 @@ import com.domleondev.designsystem.domain.model.Component
 import com.example.mylibrary.ds.input.DsInput
 import com.example.mylibrary.ds.button.DsButton
 import coil.load
+import com.example.mylibrary.ds.text.DsText
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +28,7 @@ class ComponentFactory @Inject constructor() {
         val props = component.props ?: emptyMap()
 
         val view = when (type) {
+            "ProgressBar" -> createProgressBar(context, props)
             "Header" -> createHeaderView(context, props)
             "MenuItem" -> createMenuItemView(context, props)
             "HorizontalContainer" -> createHorizontalContainer(context, component)
@@ -37,8 +39,9 @@ class ComponentFactory @Inject constructor() {
             "IconButton" -> createIconButtonView(context, props)
             "VerticalContainer" -> createVerticalContainer(context, component)
             "SelectableChip" -> createChipView(context, props)
-            "FlowContainer" -> createFlowContainer(context)
+            "FlowContainer" -> createFlowContainer(context, props)
             "DetailsImage" -> createDetailsImageView(context, props)
+            "NotificationCard" -> createNotificationCard(context, props)
             else -> createErrorView(context, type)
         }
         view?.let {
@@ -60,37 +63,38 @@ class ComponentFactory @Inject constructor() {
         }
     }
 
-    private fun createTextView(context: Context, props: Map<String, Any>?): TextView {
-        return TextView(context).apply {
+    private fun createTextView(context: Context, props: Map<String, Any>?): View {
+        return com.example.mylibrary.ds.text.DsText(context).apply {
+            val style = props?.get("textStyle")?.toString() ?: "text"
+
+            setTextStyle(when(style) {
+                "header" -> DsText.TextStyle.HEADER
+                "subtitle" -> DsText.TextStyle.SUBTITLE
+                else -> DsText.TextStyle.TEXT
+            })
             text = props?.get("title")?.toString() ?: ""
-
-
-            val size = (props?.get("size") as? Double)?.toFloat() ?: 16f
-            textSize = size
-            props?.get("textColor")?.toString()?.let { setTextColor(Color.parseColor(it)) }
-
-
-            applyAlignment(this, props)
-
-            val weight = props?.get("weight")?.toString()
-            if (weight == "bold") {
-                setTypeface(null, Typeface.BOLD)
-            }
         }
     }
 
     private fun createIconButtonView(context: Context, props: Map<String, Any>?): View {
-        return android.widget.ImageView(context).apply {
-            val iconName = props?.get("icon")?.toString() ?: "ic_filter"
+        return com.example.mylibrary.ds.icon.DsIcon(context).apply {
+
+            val iconName = props?.get("icon")?.toString() ?: "ds_icon_notification"
             val resId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
-            if (resId != 0) setImageResource(resId)
+            if (resId != 0) {
+                setIcon(androidx.core.content.ContextCompat.getDrawable(context, resId))
+            }
 
-            layoutParams = LinearLayout.LayoutParams(40.dpToPx(context), 40.dpToPx(context))
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            props?.get("iconDescription")?.toString()?.let { setIconDescription(it) }
+            props?.get("badgeDescription")?.toString()?.let { setBadgeDescription(it) }
 
-            val outValue = android.util.TypedValue()
-            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
-            setBackgroundResource(outValue.resourceId)
+            val count = (props?.get("badgeCount") as? Number)?.toInt() ?: 0
+            setBadgeCount(count)
+
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
     }
 
@@ -110,50 +114,37 @@ class ComponentFactory @Inject constructor() {
         }
     }
 
-    private fun createChipView(context: Context, props: Map<String, Any>?): TextView {
-        return TextView(context).apply {
-            id = View.generateViewId()
-            text = props?.get("text")?.toString() ?: ""
-            textSize = 10f
-            gravity = android.view.Gravity.CENTER
-            setPadding(24.dpToPx(context), 8.dpToPx(context), 24.dpToPx(context), 8.dpToPx(context))
+    private fun createChipView(context: Context, props: Map<String, Any>?): View {
+        return com.example.mylibrary.ds.chip.DsChip(context).apply {
+            setDsText(props?.get("text")?.toString() ?: "")
 
-            val isSelected = props?.get("selected") as? Boolean ?: false
+            props?.get("backgroundColor")?.toString()?.let { setDsBackgroundColor(Color.parseColor(it)) }
+            props?.get("textColor")?.toString()?.let { setDsTextColor(Color.parseColor(it)) }
 
-            updateChipStyle(this, isSelected)
-
-            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
-                marginEnd = 12.dpToPx(context)
-                bottomMargin = 14.dpToPx(context)
-            }
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
         }
     }
 
-    fun updateChipStyle(view: TextView, isSelected: Boolean) {
-        val context = view.context
-        val backgroundColor = if (isSelected) "#0056D2" else "#F3F3F3"
-        val textColor = if (isSelected) "#FFFFFF" else "#000000"
-
-        view.setTextColor(Color.parseColor(textColor))
-
-        val shape = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = 19.dpToPx(context).toFloat()
-            setColor(Color.parseColor(backgroundColor))
-        }
-        view.background = shape
-    }
-
-    private fun createFlowContainer(context: Context): com.google.android.material.chip.ChipGroup {
-        return com.google.android.material.chip.ChipGroup(context).apply {
+    private fun createFlowContainer(context: Context, props: Map<String, Any>?): View {
+        return com.example.mylibrary.ds.chip.DsChipGroup(context).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
 
-            isSingleLine = false
+            val spacing = (props?.get("chipSpacing") as? Number)?.toInt() ?: 12
+            setChipSpacing(spacing)
 
-            chipSpacingHorizontal = 8.dpToPx(context)
-            chipSpacingVertical = 8.dpToPx(context)
+            val categories = props?.get("items") as? List<String>
+            categories?.let { addChips(it) }
 
-            isSingleSelection = true
+            val selBg = props?.get("selectedBg")?.toString()
+            val selText = props?.get("selectedText")?.toString()
+            if (selBg != null && selText != null) {
+                setChipColors(
+                    selectedBg = Color.parseColor(selBg),
+                    selectedText = Color.parseColor(selText),
+                    unselectedBg = Color.parseColor("#F3F3F3"),
+                    unselectedText = Color.parseColor("#000000")
+                )
+            }
         }
     }
 
@@ -170,7 +161,7 @@ class ComponentFactory @Inject constructor() {
         return DsInput(context).apply {
             hint = props?.get("hint")?.toString() ?: ""
 
-            val height = ((props?.get("height") as? Double)?.toInt() ?: 48).dpToPx(context)
+            val height = ((props?.get("height") as? Number)?.toInt() ?: 48).dpToPx(context)
             layoutParams = ViewGroup.MarginLayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 height
@@ -194,141 +185,74 @@ class ComponentFactory @Inject constructor() {
         }
     }
 
-    private fun createButtonView(context: Context, props: Map<String, Any>?): DsButton {
-        return DsButton(context).apply {
-            text = props?.get("text")?.toString() ?: ""
-            val color = props?.get("textColor")?.toString()
-            color?.let { setTextColor(android.graphics.Color.parseColor(it)) }
+    private fun createButtonView(context: Context, props: Map<String, Any>?): View {
+        return com.example.mylibrary.ds.button.DsButton(context).apply {
+            val type = props?.get("buttonType")?.toString() ?: "primary"
+
+            setButtonType(when(type) {
+                "secondary" -> DsButton.ButtonType.SECONDARY
+                "outlined" -> DsButton.ButtonType.OUTLINED
+                "danger" -> DsButton.ButtonType.DANGER
+                else -> DsButton.ButtonType.PRIMARY
+            })
+            setDsText(props?.get("text")?.toString() ?: "")
         }
     }
+    private fun createProgressBar(context: Context, props: Map<String, Any>?): View {
+        return android.widget.ProgressBar(context).apply {
+            isIndeterminate = props?.get("isIndeterminate") as? Boolean ?: true
 
+            val colorHex = props?.get("color")?.toString() ?: "#0E64D2"
+            try {
+                val color = Color.parseColor(colorHex)
+                this.indeterminateTintList = android.content.res.ColorStateList.valueOf(color)
+            } catch (e: Exception) {
+                android.util.Log.e("DS_DEBUG", "Cor de ProgressBar inválida: $colorHex")
+            }
+
+            layoutParams = LinearLayout.LayoutParams(
+                WRAP_CONTENT,
+                WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.CENTER
+
+                if (props?.get("fullScreen") == true) {
+                    weight = 1f
+                    height = MATCH_PARENT
+                }
+            }
+        }
+    }
     private fun createHeaderView(context: Context, props: Map<String, Any>?): View {
-        return androidx.constraintlayout.widget.ConstraintLayout(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+        return com.example.mylibrary.ds.toolbar.DsToolbar(context).apply {
+            setToolbarTitle(
+                titleText = props?.get("title")?.toString() ?: "",
+                textStyle = DsText.TextStyle.HEADER
             )
-            setPadding(0.dpToPx(context), 28.dpToPx(context), 0.dpToPx(context), 0.dpToPx(context))
-
-            val leftIcon = android.widget.ImageView(context).apply {
-                id = View.generateViewId()
-                val showBack = props?.get("showBack") as? Boolean ?: false
-                val showMenu = props?.get("showMenu") as? Boolean ?: false
-
-                val iconRes = when {
-                    showBack -> context.resources.getIdentifier("ic_back", "drawable", context.packageName)
-                    showMenu -> context.resources.getIdentifier("ic_menu", "drawable", context.packageName)
-                    else -> 0
-                }
-
-                if (iconRes != 0) {
-                    setImageResource(iconRes)
-                    visibility = View.VISIBLE
-                } else {
-                    visibility = View.GONE
-                }
-
-                layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
-                    24.dpToPx(context), 24.dpToPx(context)
-                ).apply {
-                    startToStart = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                    topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                    bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
-                }
-            }
-
-            val titleView = TextView(context).apply {
-                id = View.generateViewId()
-                text = props?.get("title")?.toString() ?: ""
-
-                val colorHex = props?.get("textColor")?.toString() ?: "#000000"
-                try {
-                    setTextColor(android.graphics.Color.parseColor(colorHex))
-                } catch (e: Exception) {
-                    setTextColor(android.graphics.Color.BLACK)
-                }
-
-                val customSize = (props?.get("titleSize") as? Double)?.toFloat() ?: 18f
-                textSize = customSize
-
-                val fontName = props?.get("typeface")?.toString()
-                if (fontName != null) {
-                    val fontResId = context.resources.getIdentifier(fontName, "font", context.packageName)
-                    if (fontResId != 0) {
-                        typeface = androidx.core.content.res.ResourcesCompat.getFont(context, fontResId)
-                    }
-                } else {
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                }
-
-                visibility = if (text.isNotEmpty()) View.VISIBLE else View.GONE
-
-                layoutParams = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
-                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT,
-                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-
-                    val marginStart = if (leftIcon.visibility == View.VISIBLE) 12.dpToPx(context) else 0
-
-                    startToEnd = leftIcon.id
-                    topToTop = leftIcon.id
-                    bottomToBottom = leftIcon.id
-                    setMargins(marginStart, 0, 0, 0)
-                }
-            }
-
-            addView(leftIcon)
-            addView(titleView)
         }
     }
 
     private fun createNewsCard(context: Context, props: Map<String, Any>?): View {
-        return LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
-            setPadding(12.dpToPx(context), 12.dpToPx(context), 12.dpToPx(context), 12.dpToPx(context))
+        return com.example.mylibrary.ds.card.news.DsNewsCard(context).apply {
+            val title = props?.get("title")?.toString() ?: ""
+            val description = props?.get("description")?.toString() ?: ""
+            val time = props?.get("date")?.toString() ?: ""
+            val imageUrl = props?.get("imageUrl")?.toString()
 
-            val imageView = android.widget.ImageView(context).apply {
-                id = View.generateViewId()
-                layoutParams = LinearLayout.LayoutParams(100.dpToPx(context), 100.dpToPx(context))
-                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-
-                val url = props?.get("imageUrl")?.toString()
-                if (!url.isNullOrEmpty()) {
-                    this.load(url) {
-                        crossfade(true)
-                        placeholder(android.R.drawable.progress_indeterminate_horizontal)
-                        transformations(coil.transform.RoundedCornersTransformation(8.dpToPx(context).toFloat()))
+            setNews(
+                title = title,
+                description = description,
+                time = time,
+                imageLoader = {
+                    imageUrl?.let { url ->
+                        this.load(url) {
+                            crossfade(true)
+                            placeholder(android.R.drawable.ic_menu_report_image)
+                            error(android.R.drawable.stat_notify_error)
+                        }
                     }
                 }
-            }
-
-            val textContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply {
-                    marginStart = 12.dpToPx(context)
-                }
-
-                val titleView = TextView(context).apply {
-                    text = props?.get("title")?.toString() ?: ""
-                    textSize = 16f
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                    maxLines = 2
-                }
-
-                val descView = TextView(context).apply {
-                    text = props?.get("description")?.toString() ?: ""
-                    textSize = 14f
-                    maxLines = 3
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                }
-
-                addView(titleView)
-                addView(descView)
-            }
-
-            addView(imageView)
-            addView(textContainer)
+            )
         }
     }
 
@@ -383,6 +307,29 @@ class ComponentFactory @Inject constructor() {
 
             addView(iconView)
             addView(textView)
+        }
+    }
+
+    private fun createNotificationCard(context: Context, props: Map<String, Any>?): View {
+        return com.example.mylibrary.ds.card.notification.DsNotificationCard(context).apply {
+
+            val title = props?.get("title")?.toString() ?: ""
+            val dateTime = props?.get("date")?.toString() ?: props?.get("dateTime")?.toString() ?: ""
+            val isNew = props?.get("isNew") as? Boolean ?: false
+
+            setTitle(title)
+            setDateTime(dateTime)
+            setIsNew(isNew)
+
+            props?.get("chipText")?.toString()?.let { setChipText(it) }
+
+            props?.get("chipBgColor")?.toString()?.let {
+                setChipBackgroundColor(android.graphics.Color.parseColor(it))
+            }
+
+            props?.get("chipTextColor")?.toString()?.let {
+                setChipTextColor(android.graphics.Color.parseColor(it))
+            }
         }
     }
 
@@ -453,10 +400,10 @@ class ComponentFactory @Inject constructor() {
         }
 
         lp.setMargins(
-            ((props?.get("margin_left") as? Double)?.toInt() ?: 0).dpToPx(context),
-            ((props?.get("margin_top") as? Double)?.toInt() ?: 0).dpToPx(context),
-            ((props?.get("margin_right") as? Double)?.toInt() ?: 0).dpToPx(context),
-            ((props?.get("margin_bottom") as? Double)?.toInt() ?: 0).dpToPx(context)
+            ((props?.get("margin_left") as? Number)?.toInt() ?: 0).dpToPx(context),
+            ((props?.get("margin_top") as? Number)?.toInt() ?: 0).dpToPx(context),
+            ((props?.get("margin_right") as? Number)?.toInt() ?: 0).dpToPx(context),
+            ((props?.get("margin_bottom") as? Number)?.toInt() ?: 0).dpToPx(context)
         )
         view.layoutParams = lp
     }

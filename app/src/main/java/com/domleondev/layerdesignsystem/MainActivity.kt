@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         firebaseAnalytics = com.google.firebase.analytics.FirebaseAnalytics.getInstance(this)
 
-        viewModel.loadScreen("filters_screen")
+        viewModel.loadScreen("reset_password")
         observeViewModel()
         observeDesignSystemEvents()
 
@@ -53,10 +53,11 @@ class MainActivity : AppCompatActivity() {
         viewModel.uiState.observe(this) { state ->
             when (state) {
                 is UiState.Loading -> {
-                    binding.progressBar.visibility = View.VISIBLE
+                    binding.containerLayout.removeAllViews()
+                    renderLoading()
                 }
                 is UiState.Success -> {
-                    binding.progressBar.visibility = View.GONE
+
 
                     val pageComponents = state.screen.components.filter { it.type != "MenuItem" }
                     uiRenderer.render(binding.containerLayout, state.screen.copy(components = pageComponents))
@@ -67,10 +68,24 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 is UiState.Error -> {
-                    binding.progressBar.visibility = View.GONE
+                    binding.containerLayout.removeAllViews()
+                    renderLoading()
                 }
             }
         }
+    }
+
+    private fun renderLoading() {
+        val loadingDefinition = com.domleondev.designsystem.domain.model.ScreenDefinition(
+            screenName = "loading_state",
+            components = listOf(
+                com.domleondev.designsystem.domain.model.Component(
+                    type = "ProgressBar",
+                    props = mapOf("fullScreen" to true, "color" to "#0E64D2")
+                )
+            )
+        )
+        uiRenderer.render(binding.containerLayout, loadingDefinition)
     }
     private fun observeDesignSystemEvents() {
         lifecycleScope.launch {
