@@ -1,27 +1,14 @@
-## 📌 PR Type
+## 📌 Pull Request
 
-<!-- Mark the type of this PR with an X -->
+>  #[Numero da task]
 
-- [ ] 🚀 Feature
-- [ ] 🐛 Fix
+### 📋 Descrição
 
-> Closes/Fixes #[issue number]
-
----
-
-### 📋 Description
-
-<!-- Provide a clear and concise description of what this PR does. -->
+<!-- Uma descrição clara e concisa do que o PR entrega -->
 
 ---
 
-### 🎯 Motivation & Context
-
-<!-- Why is this change needed? What problem does it solve? -->
-
----
-
-### ✅ Changes Made
+### Mudanças
 
 - [ ] 
 - [ ] 
@@ -29,35 +16,25 @@
 
 ---
 
-### 🖼️ Screenshots / Screen Recording (if applicable)
-
-| Before | After |
-|--------|-------|
-|        |       |
+### 🖼️ Evidências
 
 ---
 
-### 🧪 Testing
+### 🧪 Testes
 
-- [ ] Unit tests added/updated
-- [ ] UI tests added/updated
-- [ ] Manually tested on Android Emulator
-- [ ] Manually tested on a physical device
+- [ ] Testes Unitários adicionados e/ou atualizados
 
 ---
 
-### 📦 Checklist
+### 📦 Passo a Passo para testar
 
-- [ ] My code follows the project's code style guidelines
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented on hard-to-understand areas
-- [ ] I have updated the documentation (if applicable)
-- [ ] My changes do not introduce new warnings or errors
-- [ ] New and existing tests pass locally
+- [ ] 
+- [ ] 
+- [ ] 
 
 ---
 
-### 🔗 Related PRs / Dependencies
+### 🔗 PRs Relacionados
 
 - 
 
